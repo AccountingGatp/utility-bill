@@ -1,4 +1,4 @@
-import cors from "cors";
+import "./parse/pdf-dom-polyfill.js";
 import express from "express";
 import multer from "multer";
 
@@ -8,17 +8,24 @@ import { zipOutputs } from "./output.js";
 import type { UploadedFile } from "./types.js";
 
 const PORT = Number(process.env.PORT ?? 4000);
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 const app = express();
 
-app.use(
-  cors({
-    origin: FRONTEND_ORIGIN,
-    methods: ["GET", "POST", "OPTIONS"],
-  }),
-);
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader(
+    "Access-Control-Expose-Headers",
+    "Content-Disposition, X-Processed-Filename, X-Process-Summary",
+  );
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
 app.use(express.json());
 
 const upload = multer({
@@ -91,10 +98,6 @@ app.post("/process", uploadFields, async (req, res) => {
     );
     res.setHeader("X-Processed-Filename", zip.zipName);
     res.setHeader("X-Process-Summary", encodeURIComponent(JSON.stringify(result.summary)));
-    res.setHeader(
-      "Access-Control-Expose-Headers",
-      "Content-Disposition, X-Processed-Filename, X-Process-Summary",
-    );
     res.send(zip.buffer);
   } catch (error) {
     const message =
