@@ -1,9 +1,9 @@
 import { DOMMatrix, ImageData, Path2D } from "@napi-rs/canvas";
 
-const g = globalThis as typeof globalThis & {
-  DOMMatrix?: typeof DOMMatrix;
-  ImageData?: typeof ImageData;
-  Path2D?: typeof Path2D;
+const g = globalThis as unknown as {
+  DOMMatrix?: unknown;
+  ImageData?: unknown;
+  Path2D?: unknown;
 };
 
 g.DOMMatrix ??= DOMMatrix;
