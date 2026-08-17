@@ -2,10 +2,11 @@ import ExcelJS from "exceljs";
 
 import { csvFromAoA } from "../output.js";
 import {
+  filesByField,
   parseOccupantCount,
   parsePreviousBilling,
   parseRentRoll,
-  parseSawsBill,
+  parseSawsBills,
   requireFile,
 } from "../parse/inputs.js";
 import {
@@ -158,7 +159,9 @@ export async function processGreenOaks(
   const increase = (options.increasePercent ?? 10) / 100;
   const occupantCount = parseOccupantCount(requireFile(files, "occupantCount", "Occupant Count"));
   const rentRoll = parseRentRoll(requireFile(files, "rentRoll", "Rent Roll"));
-  const saws = await parseSawsBill(requireFile(files, "sawsBill", "SAWS bill"));
+  const sawsFiles = filesByField(files, "sawsBill");
+  if (sawsFiles.length === 0) throw new Error("Missing required file: SAWS bill.");
+  const { combined: saws } = await parseSawsBills(sawsFiles);
   const previous = parsePreviousBilling(
     requireFile(files, "previousBilling", "Previous month billing file"),
   );

@@ -16,7 +16,14 @@ export const PROPERTIES: PropertyConfig[] = [
     fields: [
       { key: "occupantCount", label: "Occupant Count", accept: SHEETS, required: true },
       { key: "rentRoll", label: "Rent Roll", accept: SHEETS, required: true },
-      { key: "sawsBill", label: "SAWS water/sewer bill", accept: PDF, required: true },
+      {
+        key: "sawsBill",
+        label: "SAWS water/sewer bill",
+        accept: PDF,
+        required: true,
+        multiple: true,
+        hint: "Upload every SAWS PDF for this cycle. Totals are summed.",
+      },
       {
         key: "previousBilling",
         label: "Previous month billing file",
@@ -59,7 +66,14 @@ export const PROPERTIES: PropertyConfig[] = [
     fields: [
       { key: "occupantCount", label: "Occupant Count", accept: SHEETS, required: true },
       { key: "rentRoll", label: "Rent Roll", accept: SHEETS, required: true },
-      { key: "sawsBill", label: "SAWS water/sewer bill", accept: PDF, required: true },
+      {
+        key: "sawsBill",
+        label: "SAWS water/sewer bill",
+        accept: PDF,
+        required: true,
+        multiple: true,
+        hint: "Upload every SAWS PDF for this cycle. Totals are summed.",
+      },
       {
         key: "previousBilling",
         label: "Previous month billing file",
@@ -83,6 +97,7 @@ export const PROPERTIES: PropertyConfig[] = [
         accept: PDF,
         required: true,
         multiple: true,
+        hint: "Upload every SAWS PDF for this cycle. Totals are summed.",
       },
       {
         key: "previousBilling",
@@ -101,7 +116,14 @@ export const PROPERTIES: PropertyConfig[] = [
     fields: [
       { key: "occupantCount", label: "Occupant Count", accept: SHEETS, required: true },
       { key: "rentRoll", label: "Rent Roll", accept: SHEETS, required: true },
-      { key: "sawsBill", label: "SAWS water/sewer bill", accept: PDF, required: true },
+      {
+        key: "sawsBill",
+        label: "SAWS water/sewer bill",
+        accept: PDF,
+        required: true,
+        multiple: true,
+        hint: "Upload every SAWS PDF for this cycle. Totals are summed.",
+      },
       {
         key: "previousBilling",
         label: "Previous month billing file",

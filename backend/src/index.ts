@@ -36,7 +36,7 @@ const upload = multer({
 const uploadFields = upload.fields([
   { name: "occupantCount", maxCount: 1 },
   { name: "rentRoll", maxCount: 1 },
-  { name: "sawsBill", maxCount: 8 },
+  { name: "sawsBill", maxCount: 16 },
   { name: "sawsDomestic", maxCount: 1 },
   { name: "sawsIrrigation", maxCount: 1 },
   { name: "gasBill", maxCount: 1 },

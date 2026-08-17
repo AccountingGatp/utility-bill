@@ -51,6 +51,10 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function allowsMultiple(field: FileField) {
+  return Boolean(field.multiple) || field.key === "sawsBill";
+}
+
 function FileSlot({
   field,
   files,
@@ -61,6 +65,7 @@ function FileSlot({
   onChange: (files: File[]) => void;
 }) {
   const [dragging, setDragging] = useState(false);
+  const multiple = allowsMultiple(field);
 
   function addFiles(list: FileList | File[] | null) {
     if (!list) return;
@@ -70,7 +75,16 @@ function FileSlot({
       toast.error(`${oversized.name} is larger than 25 MB.`);
       return;
     }
-    onChange(field.multiple ? [...files, ...incoming] : incoming.slice(0, 1));
+    const next = multiple ? [...files, ...incoming] : incoming.slice(0, 1);
+    const seen = new Set<string>();
+    onChange(
+      next.filter((file) => {
+        const id = `${file.name}-${file.size}-${file.lastModified}`;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      }),
+    );
   }
 
   return (
@@ -105,12 +119,12 @@ function FileSlot({
       >
         <UploadIcon className="size-4 text-muted-foreground" />
         <span className="text-xs text-muted-foreground">
-          Drop or click to add {field.multiple ? "file(s)" : "a file"}
+          Drop or click to add {multiple ? "files" : "a file"}
         </span>
         <input
           type="file"
           accept={field.accept}
-          multiple={field.multiple}
+          multiple={multiple}
           className="sr-only"
           onChange={(event) => {
             addFiles(event.target.files);
