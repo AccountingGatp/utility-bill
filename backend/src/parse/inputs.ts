@@ -220,8 +220,12 @@ export function parsePreviousBilling(file: UploadedFile): PreviousCharge[] {
         !/^total/i.test(unit) &&
         (resident || amount > 0)
       );
+    });
+    const withAmount = dataRows.filter((row) => {
+      const amount = totalIdx >= 0 ? parseNumber(row[totalIdx]) : 0;
+      return amount > 0;
     }).length;
-    const score = dataRows;
+    const score = withAmount * 1000 + dataRows.length;
     if (!best || score > best.score) {
       best = { headerAt, rows: sheet.rows, score };
     }

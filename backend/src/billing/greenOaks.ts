@@ -97,7 +97,8 @@ function countNames(name: string) {
 function isRealUnit(unit: string, occupants: number) {
   if (occupants > 20) return false;
   const key = unitKey(unit);
-  return /^\d+[A-Z]?$/.test(key);
+  if (/shop|office|model|storage|maint/i.test(key)) return false;
+  return /\d/.test(key);
 }
 
 function inCycle(date: Date | null, start: Date, end: Date) {
@@ -176,11 +177,20 @@ export async function processGreenOaks(
   const prevMap = indexPrevious(previous);
   const prevByName = indexPreviousByName(previous);
   const roster = buildRoster(occupantCount, rentRoll);
-  const sizeCaps = deriveSizeCaps(previous, roster);
+  const derivedCaps = deriveSizeCaps(previous, roster);
+  const sizeCaps = {
+    small: derivedCaps.small || 60,
+    large: derivedCaps.large || 120,
+    bases: derivedCaps.bases,
+  };
   const bases = sizeCaps.bases;
   const stdUsage = deriveStdUsage(previous, bases, 1);
   const due = firstOfNextMonth(saws.end);
   const billed: BilledRow[] = [];
+  let skippedUnitFormat = 0;
+  let skippedVacant = 0;
+  let skippedProration = 0;
+  let skippedAmount = 0;
 
   const keys = new Set([...occByUnit.keys(), ...rollByUnit.keys()]);
   const ordered = [...keys].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
@@ -189,14 +199,17 @@ export async function processGreenOaks(
     const occ = occByUnit.get(key);
     const roll = rollByUnit.get(key);
     const displayUnit = occ?.unit || roll?.unit || key;
-    if (!isRealUnit(displayUnit, occ?.occupants ?? 0)) continue;
+    if (!isRealUnit(displayUnit, occ?.occupants ?? 0)) {
+      skippedUnitFormat += 1;
+      continue;
+    }
 
     const type = roll?.type ?? "";
     const sqft = occ?.sqft || roll?.sqft || 0;
     const cap = floorplanCap(type, sqft, sizeCaps);
     const occName = occ?.resident?.trim() ?? "";
     const rollName = roll?.resident?.trim() ?? "";
-    const hasCurrent = !isVacantName(occName) && (occ?.occupants ?? 0) > 0;
+    const hasCurrent = !isVacantName(occName);
     const rollResident = !isVacantName(rollName) ? rollName : "";
     const prev = lookupPrevious(key, displayUnit, rollResident || occName, prevMap, prevByName);
 
@@ -208,21 +221,28 @@ export async function processGreenOaks(
 
     if (hasCurrent) {
       name = occName;
-      displayOccs = occ!.occupants;
-      rateOccs = occ!.occupants;
+      displayOccs = occ?.occupants ?? 0;
+      rateOccs = (occ?.occupants ?? 0) || prev?.occupants || countNames(occName);
     } else if (rollResident && (moveOut || /ntv/i.test(roll?.status ?? ""))) {
       const { ratio } = proration(roll?.moveIn ?? prev?.moveIn ?? null, moveOut, saws.start, saws.end);
-      if (ratio <= 0) continue;
+      if (ratio <= 0) {
+        skippedProration += 1;
+        continue;
+      }
       name = rollResident;
       displayOccs = occ?.occupants ?? 0;
       rateOccs = prev?.occupants || countNames(rollResident);
       moveIn = roll?.moveIn ?? prev?.moveIn ?? null;
     } else {
+      skippedVacant += 1;
       continue;
     }
 
     const { days, ratio } = proration(moveIn, moveOut, saws.start, saws.end);
-    if (ratio <= 0) continue;
+    if (ratio <= 0) {
+      skippedProration += 1;
+      continue;
+    }
 
     const prevCombined = prev ? wsTotal(prev) : 0;
     const prevUsage = prev?.combinedIncludesBases ? Math.max(0, prevCombined - bases) : prevCombined;
@@ -232,15 +252,19 @@ export async function processGreenOaks(
       !prevWasPartial &&
       sameHousehold(name, prev?.resident ?? "");
 
+    const increaseAmount = Number.isFinite(increase) ? increase : 0.1;
     let usage = cap;
     if (canAnchor) {
-      usage = Math.min(cap, prevUsage * (1 + increase));
+      usage = Math.min(cap, prevUsage * (1 + increaseAmount));
     } else if (rateOccs <= 1 && stdUsage > 0) {
-      usage = Math.min(cap, stdUsage * (1 + increase));
+      usage = Math.min(cap, stdUsage * (1 + increaseAmount));
     }
 
     const amount = round2((usage + bases) * ratio);
-    if (amount <= 0) continue;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      skippedAmount += 1;
+      continue;
+    }
 
     billed.push({
       name,
@@ -256,6 +280,12 @@ export async function processGreenOaks(
       cap,
       newMoveIn: inCycle(moveIn, saws.start, saws.end),
     });
+  }
+
+  if (billed.length === 0) {
+    throw new Error(
+      `Green Oaks produced no billable units (occupant rows: ${occByUnit.size}, rent roll: ${rollByUnit.size}, previous billing: ${previous.length}; skipped format ${skippedUnitFormat}, vacant ${skippedVacant}, proration ${skippedProration}, zero amount ${skippedAmount}). Upload Occupant Count, Rent Roll, the SAWS PDF, and last month’s GO Billing FINAL workbook — not Import or Utility Billing August.`,
+    );
   }
 
   const extraBlanks = Array.from({ length: TEMPLATE_HEADERS.length - 9 }, () => "");
@@ -364,6 +394,8 @@ async function xlsxGreenOaks(
     const totalCell = excelRow.getCell(33);
     amountCell.numFmt = "#,##0.00";
     totalCell.numFmt = "#,##0.00";
+    amountCell.value = row.amount;
+    totalCell.value = row.amount;
     const fill = row.ratio < 1 ? blue : row.cap === smallCap ? green : orange;
     amountCell.fill = fill;
     totalCell.value = row.amount;

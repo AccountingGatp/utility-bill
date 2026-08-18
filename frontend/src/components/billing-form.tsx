@@ -167,6 +167,7 @@ export function BillingForm() {
   const [recaptureRate, setRecaptureRate] = useState("95");
   const [busy, setBusy] = useState(false);
   const [resultName, setResultName] = useState<string | null>(null);
+  const [resultSummary, setResultSummary] = useState<Record<string, string | number> | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -188,6 +189,7 @@ export function BillingForm() {
   useEffect(() => {
     setUploads({});
     setResultName(null);
+    setResultSummary(null);
     if (propertyId === "valencia") setRecaptureRate("65");
     else if (propertyId) setRecaptureRate("95");
   }, [propertyId]);
@@ -202,16 +204,19 @@ export function BillingForm() {
     if (!property || !ready) return;
     setBusy(true);
     setResultName(null);
+    setResultSummary(null);
     try {
       const result = await processProperty({
         propertyId: property.id,
         files: uploads,
-        increasePercent: property.id === "green-oaks" ? Number(increasePercent) : undefined,
+        increasePercent:
+          property.id === "green-oaks" ? Number(increasePercent) || 10 : undefined,
         recaptureRate:
           property.id === "green-oaks" ? undefined : Number(recaptureRate) / 100,
       });
       downloadBlob(result.blob, result.filename);
       setResultName(result.filename);
+      setResultSummary(result.summary);
       toast.success("Billing files downloaded.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Processing failed.");
@@ -326,7 +331,18 @@ export function BillingForm() {
             <AlertTitle>Ready</AlertTitle>
             <AlertDescription>
               Downloaded <span className="font-medium text-foreground">{resultName}</span>.
-              Uploads were discarded after the response.
+              {resultSummary?.units != null ? (
+                <>
+                  {" "}
+                  {String(resultSummary.units)} units billed
+                  {resultSummary.collected != null
+                    ? ` · collected $${Number(resultSummary.collected).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+                    : ""}
+                  .
+                </>
+              ) : (
+                <> Uploads were discarded after the response.</>
+              )}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -346,6 +362,7 @@ export function BillingForm() {
             onClick={() => {
               setUploads({});
               setResultName(null);
+              setResultSummary(null);
             }}
             disabled={busy}
           >
